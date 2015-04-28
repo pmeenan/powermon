@@ -19,7 +19,7 @@ static int ev_handler(struct mg_connection *conn, enum mg_event ev) {
           if (power_stats)
             response = power_stats->Start();
         } else if (uri == "/measure") {
-            response = power_stats->Measure(conn->query_string);
+            response = power_stats->Measure();
         } else {
           response = conn->uri + std::string(" - Unknown request.  Valid requests are /start and /measure");
         }
@@ -48,18 +48,26 @@ int main(void) {
   struct mg_server *server;
   power_stats = new PowerStats();
 
-  // Create and configure the server
-  server = mg_create_server(NULL, ev_handler);
-  mg_set_option(server, "listening_port", "8765");
+  if (power_stats->ok) {
+    // Create and configure the server
+    server = mg_create_server(NULL, ev_handler);
+    mg_set_option(server, "listening_port", "8765");
 
-  // Serve request. Hit Ctrl-C to terminate the program
-  printf("Starting on port %s\n", mg_get_option(server, "listening_port"));
-  while (!must_exit) {
-    mg_poll_server(server, 3000);
+    // Serve request. Hit Ctrl-C to terminate the program
+    printf("Power monitoring started\n");
+    printf("Start measurement from http://127.0.0.1:%s/start\n", mg_get_option(server, "listening_port"));
+    printf("Get measurements from  http://127.0.0.1:%s/measure\n", mg_get_option(server, "listening_port"));
+    printf("Hit ctrl-C to exit...\n");
+    while (!must_exit) {
+      mg_poll_server(server, 3000);
+    }
+
+    // Cleanup, and free server instance
+    mg_destroy_server(&server);
+  } else {
+    printf("Power monitoring failed to start.\nMake sure the Intel Power Gadget is installed.\n");
   }
 
-  // Cleanup, and free server instance
-  mg_destroy_server(&server);
   delete power_stats;
 
   return 0;

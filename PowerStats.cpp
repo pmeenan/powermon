@@ -3,11 +3,10 @@
 
 PowerStats::PowerStats() {
   #ifdef WIN32
-  start_time.QuadPart = 0;
   start_cpu_time.QuadPart = 0;
   #endif
 
-  intel.IntelEnergyLibInitialize();
+  ok = intel.IntelEnergyLibInitialize();
 }
 
 
@@ -18,27 +17,20 @@ PowerStats::~PowerStats() {
 /*-----------------------------------------------------------------------------
 -----------------------------------------------------------------------------*/
 std::string PowerStats::Start() {
-  std::string response = "OK";
-  #ifdef WIN32
-  QueryPerformanceCounter(&start_time);
-  GetWinCPUTime(start_cpu_time);
-  #endif
-  intel.ReadSample();
-  return response;
+  // Just trigger a throw-away measurement
+  Measure();
+  return "OK";
 }
 
 /*-----------------------------------------------------------------------------
 -----------------------------------------------------------------------------*/
-std::string PowerStats::Measure(const char * query_params) {
-  std::string response("{\"type\":\"measurement\"");
-
-  // Elapsed wall-clock (seconds)
-  response += ",\"elapsed_time\":" + GetElapsedTime();
+std::string PowerStats::Measure() {
+  std::string response("{");
 
   // CPU busy time (seconds)
-  response += ",\"cpu_time\":" + GetCPUTime();
+  response += "\"cpu_time\":" + GetCPUTime();
 
-  // Power Data
+  // Power Data (including elapsed time)
   response += GetPowerData();
 
   response += "}";
@@ -47,29 +39,14 @@ std::string PowerStats::Measure(const char * query_params) {
 
 /*-----------------------------------------------------------------------------
 -----------------------------------------------------------------------------*/
-std::string PowerStats::GetElapsedTime() {
-  double elapsed = 0;
-  #ifdef WIN32
-  if (start_time.QuadPart > 0) {
-    LARGE_INTEGER now, freq;
-    QueryPerformanceCounter(&now);
-    QueryPerformanceFrequency(&freq);
-    elapsed = (double)(now.QuadPart - start_time.QuadPart) / (double)freq.QuadPart;
-  }
-  #endif
-  return DoubleToString(elapsed);
-}
-
-/*-----------------------------------------------------------------------------
------------------------------------------------------------------------------*/
 std::string PowerStats::GetCPUTime() {
   double elapsed = 0;
   #ifdef WIN32
-  if (start_cpu_time.QuadPart > 0) {
-    ULARGE_INTEGER now;
-    GetWinCPUTime(now);
+  ULARGE_INTEGER now;
+  GetWinCPUTime(now);
+  if (start_cpu_time.QuadPart > 0)
     elapsed = (double)(now.QuadPart - start_cpu_time.QuadPart) / 10000000.0;
-  }
+  start_cpu_time.QuadPart = now.QuadPart;
   #endif
   return DoubleToString(elapsed);
 }
@@ -81,18 +58,6 @@ std::string PowerStats::DoubleToString(double num) {
   char buff[100];
   sprintf(buff, "%0.6f", num);
   response = buff;
-  return response;
-}
-
-/*-----------------------------------------------------------------------------
------------------------------------------------------------------------------*/
-std::string PowerStats::IntToString(int num) {
-  std::string response = "";
-  if (num) {
-    char buff[100];
-    sprintf(buff, "%d", num);
-    response = buff;
-  }
   return response;
 }
 
@@ -122,6 +87,10 @@ std::string PowerStats::GetPowerData() {
   std::wstring_convert<std::codecvt_utf8<wchar_t>> myconv;
 
   intel.ReadSample();
+  double elapsed = 0;
+  if (intel.GetTimeInterval(&elapsed))
+    result += ",\"elapsed_time\":" + DoubleToString(elapsed);
+
   int nodes = 0;
   if (intel.GetNumNodes(&nodes) && nodes > 0) {
     int count = 0;
@@ -135,13 +104,17 @@ std::string PowerStats::GetPowerData() {
         if (funcID == 1) {  // Power
           int nData = 0;
           double data[3];
+          double joules = 0;
+          double mWh = 0;
           for (int node = 0; node < nodes; node++) {
             if (intel.GetPowerData(node, msr, data, &nData) && nData >= 3) {
-              key = std::string(myconv.to_bytes(std::wstring(name)));
-              result += ",\"" + key + IntToString(node) + " Joules\":" + DoubleToString(data[1]);
-              result += ",\"" + key + IntToString(node) + " mWh\":" + DoubleToString(data[2]);
+              joules += data[1];
+              mWh += data[2];
             }
           }
+          key = std::string(myconv.to_bytes(std::wstring(name)));
+          result += ",\"" + key + " Joules\":" + DoubleToString(data[1]);
+          result += ",\"" + key + " mWh\":" + DoubleToString(data[2]);
         }
       }
     }
