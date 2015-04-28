@@ -23,6 +23,7 @@ private:
   std::string DoubleToString(double num);
 
   #ifdef WIN32
+  LARGE_INTEGER start_time;
   ULARGE_INTEGER start_cpu_time;
   void GetWinCPUTime(ULARGE_INTEGER &cpu_time);
   CIntelPowerGadgetLib intel;

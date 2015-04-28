@@ -10,6 +10,7 @@
 
 PowerStats::PowerStats() {
   #ifdef WIN32
+  start_time.QuadPart = 0;
   start_cpu_time.QuadPart = 0;
   ok = intel.IntelEnergyLibInitialize();
   #else
@@ -54,6 +55,13 @@ std::string PowerStats::Measure() {
 std::string PowerStats::GetElapsedTime() {
   double elapsed = 0;
 #ifdef WIN32
+  LARGE_INTEGER now, freq;
+  QueryPerformanceCounter(&now);
+  if (start_time.QuadPart > 0) {
+    QueryPerformanceFrequency(&freq);
+    elapsed = (double)(now.QuadPart - start_time.QuadPart) / (double)freq.QuadPart;
+  }
+  start_time.QuadPart = now.QuadPart;
 #else
   uint64_t now = mach_absolute_time();
   if (start_time > 0) {
@@ -189,13 +197,15 @@ bool PowerStats::Intel_GetNumMsrs(int &count){
 bool PowerStats::Intel_GetMsrName(int iMsr, std::string &name){
   wchar_t buff[1024];
   bool ok = intel.GetMsrName(iMsr, buff);
-  if (ok)
+  if (ok) {
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> myconv;
     name = std::string(myconv.to_bytes(std::wstring(buff)));
+  }
   return ok;
 }
 
 bool PowerStats::Intel_GetMsrFunc(int iMsr, int &funcID){
-  return intel.GetMsrFunc(iMsr, &funcID)
+  return intel.GetMsrFunc(iMsr, &funcID);
 }
 
 bool PowerStats::Intel_GetPowerData(int iNode, int iMSR, double *pResult, int *nResult){
