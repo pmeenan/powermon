@@ -18,8 +18,10 @@ static int ev_handler(struct mg_connection *conn, enum mg_event ev) {
         if (uri == "/start") {
           if (power_stats)
             response = power_stats->Start();
+            printf("/start\n");
         } else if (uri == "/measure") {
             response = power_stats->Measure();
+            printf("Measurement: %s\n", response.c_str());
         } else {
           response = conn->uri + std::string(" - Unknown request.  Valid requests are /start and /measure");
         }
