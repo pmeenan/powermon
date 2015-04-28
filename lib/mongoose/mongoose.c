@@ -15,6 +15,9 @@
 // Alternatively, you can license this library under a commercial
 // license, as set out in <http://cesanta.com/>.
 
+#define MONGOOSE_NO_FILESYSTEM
+#define NS_DISABLE_SOCKETPAIR
+
 #ifdef NOEMBED_NET_SKELETON
 #include "net_skeleton.h"
 #else
@@ -1770,10 +1773,10 @@ static int get_request_len(const char *s, size_t buf_len) {
     if (!isprint(buf[i]) && buf[i] != '\r' && buf[i] != '\n' && buf[i] < 128) {
       return -1;
     } else if (buf[i] == '\n' && i + 1 < buf_len && buf[i + 1] == '\n') {
-      return i + 2;
+      return (int)(i + 2);
     } else if (buf[i] == '\n' && i + 2 < buf_len && buf[i + 1] == '\r' &&
                buf[i + 2] == '\n') {
-      return i + 3;
+      return (int)(i + 3);
     }
   }
 
@@ -1809,7 +1812,7 @@ static void parse_http_headers(char **buf, struct mg_connection *ri) {
     ri->http_headers[i].value = skip(buf, "\r\n");
     if (ri->http_headers[i].name[0] == '\0')
       break;
-    ri->num_headers = i + 1;
+    ri->num_headers = (int)(i + 1);
   }
 }
 
@@ -2362,7 +2365,7 @@ static void on_cgi_data(struct ns_connection *nc) {
     if (len == 0) return;
 
     if (len < 0 || len > (int) sizeof(buf)) {
-      len = io->len;
+      len = (int)io->len;
       iobuf_remove(io, io->len);
       send_http_error(conn, 500, "CGI program sent malformed headers: [%.*s]",
         len, io->buf);
@@ -2480,7 +2483,7 @@ int mg_url_decode(const char *src, size_t src_len, char *dst,
 
   dst[j] = '\0'; // Null-terminate the destination
 
-  return i >= src_len ? j : -1;
+  return i >= src_len ? (int)j : -1;
 }
 
 static int is_valid_http_method(const char *s) {
@@ -4724,6 +4727,7 @@ static void try_parse(struct connection *conn) {
 }
 
 static void do_proxy(struct connection *conn) {
+  /*
   if (0 && conn->request_len == 0) {
     try_parse(conn);
     DBG(("%p parsing -> %d", conn, conn->request_len));
@@ -4736,6 +4740,7 @@ static void do_proxy(struct connection *conn) {
     DBG(("%p forwarding", conn));
     ns_forward(conn->ns_conn, conn->endpoint.nc);
   }
+  */
 }
 
 static void on_recv_data(struct connection *conn) {

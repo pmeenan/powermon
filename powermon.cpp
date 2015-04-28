@@ -1,6 +1,5 @@
 #include "PowerStats.h"
 
-#define MONGOOSE_NO_FILESYSTEM
 #include "lib/mongoose/mongoose.h"
 
 bool must_exit = false;
@@ -25,7 +24,7 @@ static int ev_handler(struct mg_connection *conn, enum mg_event ev) {
         } else {
           response = conn->uri + std::string(" - Unknown request.  Valid requests are /start and /measure");
         }
-        mg_send_data(conn, response.c_str(), response.length());
+        mg_send_data(conn, response.c_str(), (int)response.length());
         return MG_TRUE;
       }
     default: return MG_FALSE;
@@ -38,14 +37,14 @@ BOOL CtrlHandler(DWORD fdwCtrlType) {
   must_exit = true;
   return TRUE;
 }
-#endif WIN32
+#endif // WIN32
 
 /*-----------------------------------------------------------------------------
 -----------------------------------------------------------------------------*/
 int main(void) {
-#ifdef WIN32
+  #ifdef WIN32
   SetConsoleCtrlHandler((PHANDLER_ROUTINE)CtrlHandler, TRUE);
-#endif WIN32
+  #endif // WIN32
 
   struct mg_server *server;
   power_stats = new PowerStats();
